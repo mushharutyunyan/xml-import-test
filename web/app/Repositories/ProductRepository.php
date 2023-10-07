@@ -41,6 +41,7 @@ class ProductRepository
             FROM
                 products
             $queryWhere
+            ORDER BY id DESC
             LIMIT $limit
             OFFSET $offset
         ";
