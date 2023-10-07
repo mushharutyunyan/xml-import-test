@@ -1,0 +1,72 @@
+version: '3'
+services:
+    web:
+        image: nginx:alpine
+        container_name: backend
+        volumes:
+            - "./etc/nginx/default.conf:/etc/nginx/conf.d/default.conf"
+            - "./etc/ssl:/etc/ssl"
+            - "./web:/var/www/html"
+            - "./etc/nginx/default.template.conf:/etc/nginx/conf.d/default.template"
+        ports:
+            - "8000:80"
+            - "3000:443"
+        environment:
+            - NGINX_HOST=${NGINX_HOST}
+        command: /bin/sh -c "envsubst '$$NGINX_HOST' < /etc/nginx/conf.d/default.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+        restart: always
+        networks:
+            program:
+                ipv4_address: 172.20.0.10
+        depends_on:
+            - php
+            - frontend
+    php:
+        image: nanoninja/php-fpm:${PHP_VERSION}
+        restart: always
+        networks:
+            - program
+        volumes:
+            - "./etc/php/php.ini:/usr/local/etc/php/conf.d/php.ini"
+            - "./web:/var/www/html"
+    db:
+        image: mysql:5.7
+        restart: always
+        networks:
+            - program
+        environment:
+            # For update - Do not forget to change system/DBConnection too
+            MYSQL_DATABASE: ${MYSQL_DATABASE}
+            MYSQL_USER: ${MYSQL_USER}
+            MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+        ports:
+            - '3307:3307'
+        expose:
+            - '3307'
+        volumes:
+            - db:/var/lib/mysql
+        command: ['mysqld', '--character-set-server=utf8mb4', '--collation-server=utf8mb4_general_ci']
+    frontend:
+        image: node:current-alpine
+        working_dir: /home/node/app
+        volumes:
+            - ./frontend:/home/node/app
+        networks:
+            program:
+                  ipv4_address: 172.20.0.9
+        environment:
+            NODE_ENV: development
+        command: /bin/sh -c "npm install && npm run serve"
+networks:
+    program:
+        driver: bridge
+        ipam:
+            config:
+                - subnet: 172.20.0.0/16
+volumes:
+    program-backend:
+        driver: local
+    program-frontend:
+        driver: local
+    db:
